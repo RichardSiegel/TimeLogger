@@ -119,7 +119,7 @@ class Task:
     def is_active(self):
         return len(self.time_blocks) > 0 and self.time_blocks[-1].end is None
 
-    def is_hidden(self):
+    def is_unpaid(self):
         return self.name.startswith('.')
 
     def start(self):
@@ -266,16 +266,16 @@ def show_task_summary(tasks):
         total_time = task.get_total_time_spent()
         pointer = '>' if task.is_active() else ' '
         print(f"{index:02d} {pointer} {total_time:.2f}h  {task.name}")
-    total_time = sum(task.get_total_time_spent() for task in tasks)
-    visible_tasks = [task for task in tasks if not task.is_hidden()]
-    total_time_without_hidden = sum(task.get_total_time_spent() for task in visible_tasks)
+    total_logged_time = sum(task.get_total_time_spent() for task in tasks)
+    visible_tasks = [task for task in tasks if not task.is_unpaid()]
+    total_working_time = sum(task.get_total_time_spent() for task in visible_tasks)
     print()
-    print(f"Total working time: {total_time:.2f} hours")
-    if not total_time == total_time_without_hidden:
-        print(f"Total working time (without hidden): {total_time_without_hidden:.2f} hours")
+    print(f"Total logged time: {total_logged_time:.2f} hours")
+    if not total_logged_time == total_working_time:
+        print(f"Total working time: {total_working_time:.2f} hours")
 
 def show_task_percentages(tasks):
-    visible_tasks = [task for task in tasks if not task.is_hidden()]
+    visible_tasks = [task for task in tasks if not task.is_unpaid()]
     total_time = sum(task.get_total_time_spent() for task in visible_tasks)
     rounded_percentages = []
     for task in visible_tasks:
@@ -319,10 +319,19 @@ def main():
         elif command == "stop" or command == "x":
             stop_current_task()
         elif command == "help":
-            print("'' update view")
-            print("'rm ...' to delete")
-            print("'stop' to stop current task")
-            print("'..=..=..' to rename and merge")
+            print("''                              update view")
+            print("'rm [name/id]'                  to delete")
+            print("'stop' OR 'x'                   to stop current task")
+            print("'[name/id]=[name/id]=[name/id]' to rename, merge and create")
+            print("    'a=b'                        to merge b into a")
+            print("    'a=b=c'                      to merge b and c into a")
+            print("    'a=new_task_name'            to rename a")
+            print("    'a=12:15-18'                 to create a from 12:15 to 18:00")
+            print("    'a=9-now'                    to create unclosed task a starting 9:00")
+            print("    WARNING: New Task overwrite existing tasks at the same time.")
+            print("             Try not to clash tasks if you want to be sure.")
+            print("             * This will be improved in the future.")
+            print("'exit' OR 'q'                   close time logger CLI")
         else:
             if not params:
                 # Create new Task
