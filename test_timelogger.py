@@ -34,6 +34,17 @@ class TaskTimeBlock(unittest.TestCase):
         block = TimeBlock('now-now')
         self.assertEqual(block.start,None)
         self.assertEqual(block.end,None)
+        
+    def test_is_valid_range(self):
+        self.assertTrue(TimeBlock.is_valid_range("2-5"))
+        self.assertTrue(TimeBlock.is_valid_range("2:30-23:59"))
+        self.assertFalse(TimeBlock.is_valid_range("2-23:60"))
+        self.assertFalse(TimeBlock.is_valid_range("-2-5"))
+        self.assertFalse(TimeBlock.is_valid_range("2-24"))
+        self.assertFalse(TimeBlock.is_valid_range("-"))
+        self.assertFalse(TimeBlock.is_valid_range("now"))
+        self.assertFalse(TimeBlock.is_valid_range("10:30"))
+        self.assertFalse(TimeBlock.is_valid_range(""))
 
     def test_to_string(self):
         self.assertTrue(TimeBlock().to_string().endswith('-now'))
