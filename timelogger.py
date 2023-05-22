@@ -31,9 +31,10 @@ class TimeBlock:
             self.start = None
             self.end = None
 
-    # TODO test
     @staticmethod
     def is_valid_range(time_range):
+        if not time_range.count('-') == 1:
+            return False
         s, e = time_range.split('-')
         start = TimeBlock.string_to_timestamp(s)
         end = TimeBlock.string_to_timestamp(e)
