@@ -133,10 +133,10 @@ class TaskTask(unittest.TestCase):
         self.task.stop()
         self.assertFalse(self.task.is_active())
 
-    def test_is_hidden(self):
-        self.assertFalse(self.task.is_hidden())
+    def test_is_unpaid(self):
+        self.assertFalse(self.task.is_unpaid())
         self.task.name = ".Hidden Task"
-        self.assertTrue(self.task.is_hidden())
+        self.assertTrue(self.task.is_unpaid())
 
     def test_start(self):
         self.assertFalse(self.task.is_active())
