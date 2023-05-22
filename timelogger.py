@@ -320,7 +320,7 @@ def main():
             stop_current_task()
         elif command == "help":
             print("'' update view")
-            print("'del=...' to delete")
+            print("'rm ...' to delete")
             print("'stop' to stop current task")
             print("'..=..=..' to rename and merge")
         else:
