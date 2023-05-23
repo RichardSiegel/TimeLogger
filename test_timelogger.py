@@ -1,5 +1,5 @@
 # How to run this test:
-# watch "python3 -m unittest test_timelogger.py 2>&1 | grep FAIL"
+# watch "python3 -m unittest test_timelogger.py"
 
 import unittest
 import json
@@ -34,7 +34,7 @@ class TaskTimeBlock(unittest.TestCase):
         block = TimeBlock('now-now')
         self.assertEqual(block.start,None)
         self.assertEqual(block.end,None)
-        
+
     def test_is_valid_range(self):
         self.assertTrue(TimeBlock.is_valid_range("2-5"))
         self.assertTrue(TimeBlock.is_valid_range("2:30-23:59"))
@@ -126,11 +126,11 @@ class TaskTimeBlock(unittest.TestCase):
         self.assertEqual((block.start-today)/3600, 10)
         self.assertEqual((block.end-today)/3600, 11)
 
-    def test_get_houres(self):
-        self.assertEqual(TimeBlock('10-12').get_houres(), 2)
-        self.assertEqual(TimeBlock('10:45-12').get_houres(), 1.25)
-        self.assertTrue(TimeBlock('0-now').get_houres() > 0)
-        self.assertEqual(TimeBlock('now-20').get_houres(), 0)
+    def test_time_spent(self):
+        self.assertEqual(TimeBlock('10-12').time_spent(), 2)
+        self.assertEqual(TimeBlock('10:45-12').time_spent(), 1.25)
+        self.assertTrue(TimeBlock('0-now').time_spent() > 0)
+        self.assertEqual(TimeBlock('now-20').time_spent(), 0)
 
 
 class TaskTask(unittest.TestCase):
@@ -290,6 +290,46 @@ class TaskTask(unittest.TestCase):
         self.assertEqual(loaded_task.name, "Test Task")
         self.assertEqual(loaded_task.description, "Test description")
         self.assertEqual(len(loaded_task.time_blocks), 2)
+
+    def test_get_first_start_time(self):
+        self.task.add_time_block("3-4")
+        self.task.add_time_block("1-2")
+        self.task.add_time_block("4-5")
+        self.task.add_time_block("2-3")
+        self.assertEqual(self.task.get_first_start_time()-today,3600*1)
+        self.task = Task('mixed test times')
+        self.task.add_time_block("9-1")
+        self.task.add_time_block("6-9")
+        self.task.add_time_block("8-4")
+        self.task.add_time_block("9-2")
+        self.assertEqual(self.task.get_first_start_time()-today,3600*6)
+
+    def test_get_last_end_time(self):
+        self.task.add_time_block("3-4")
+        self.task.add_time_block("1-2")
+        self.task.add_time_block("4-5")
+        self.task.add_time_block("2-3")
+        self.assertEqual(self.task.get_last_end_time()-today,3600*5)
+        self.task = Task('mixed test times')
+        self.task.add_time_block("0-1")
+        self.task.add_time_block("1-9")
+        self.task.add_time_block("1-4")
+        self.task.add_time_block("1-2")
+        self.assertEqual(self.task.get_last_end_time()-today,3600*9)
+
+    def test_get_task_time_range(self):
+        self.task.add_time_block("1-2")
+        self.task.add_time_block("4-5")
+        self.task.add_time_block("2-3")
+        self.assertEqual(self.task.get_task_time_range(),'01:00-+>05:00')
+        self.task = Task('just one block')
+        self.task.add_time_block("9:15-17:30")
+        self.assertEqual(self.task.get_task_time_range(),'09:15-->17:30')
+        self.task = Task('until now')
+        self.task.add_time_block("13-18")
+        self.task.add_time_block("13-now")
+        self.assertEqual(self.task.get_task_time_range(),'13:00-+>now')
+
 
 if __name__ == '__main__':
     unittest.main()
