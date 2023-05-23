@@ -8,6 +8,15 @@ import time
 import os
 import re
 import copy
+import sys
+
+path = './.timelogger/'
+filepath = path + datetime.now().strftime("%Y-%m-%d_%A.json")
+# Check if the argument was provided
+if len(sys.argv) > 1:
+    for arg in sys.argv:
+        if arg.endswith('.json'):
+            filepath = arg
 
 class TimeConflict(Enum):
     UNCHANGED = 1
@@ -53,8 +62,8 @@ class TimeBlock:
     def __repr__(self):
         return self.to_string()
 
-    def to_string(self):
-        today = int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+    def to_string(self, split='-'):
+        today = int(datetime.fromtimestamp(self.start).replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
         start_h = int((self.start - today) / 3600)
         start_min = int((float((self.start - today) / 60) - (start_h * 60)))
         start_time = f"{start_h:02d}:{start_min:02d}"
@@ -63,7 +72,7 @@ class TimeBlock:
             end_h = int((self.end - today) / 3600)
             end_min = int((self.end - today) / 60) - (end_h * 60)
             end_time = f"{end_h:02d}:{end_min:02d}"
-        return f"{start_time}-{end_time}"
+        return f"{start_time}{split}{end_time}"
 
     def to_json(self):
         return {
@@ -102,7 +111,7 @@ class TimeBlock:
         return new_block
 
     # TODO calculate all times (also down the line) without the time block until now (to not count time double)
-    def get_houres(self):
+    def time_spent(self):
         if self.start is None:
             return 0
         if self.end is None:
@@ -176,8 +185,27 @@ class Task:
     def get_total_time_spent(self):
         total_hours = 0
         for time_block in self.time_blocks:
-            total_hours += time_block.get_houres()
+            total_hours += time_block.time_spent()
         return total_hours
+
+    def get_first_start_time(self):
+        if any(block.start is None for block in self.time_blocks):
+            return None
+        return sorted(self.time_blocks)[0].start
+
+    def get_last_end_time(self):
+        if any(block.end is None for block in self.time_blocks):
+            return None
+        return sorted(self.time_blocks, key=lambda block: block.end)[-1].end
+
+    def get_task_time_range(self):
+        task_time_range = TimeBlock()
+        task_time_range.start = self.get_first_start_time()
+        task_time_range.end = self.get_last_end_time()
+        if len(self.time_blocks) > 1:
+            return task_time_range.to_string('-+>')
+        else:
+            return task_time_range.to_string('-->')
 
     def get_json(self):
         data = {
@@ -202,15 +230,9 @@ class Task:
             task.time_blocks.append(block)
         return task
 
-path='./.timelogger/'
-def generate_filename():
-    now = datetime.now()
-    return now.strftime("%Y-%m-%d_%A.json")
-
 def load_tasks_from_file(task):
-    filename=path+generate_filename()
-    if os.path.isfile(filename):
-        with open(filename, 'r') as file:
+    if os.path.isfile(filepath):
+        with open(filepath, 'r') as file:
             data = json.load(file)
             for task_data in data:
                 task = Task.load_from_json(task_data)
@@ -221,7 +243,7 @@ def save_tasks_to_file(tasks):
     if not os.path.exists(path):
         os.makedirs(path)
     data = [task.get_json() for task in tasks]
-    with open(path+generate_filename(), 'w') as file:
+    with open(filepath, 'w') as file:
         json.dump(data, file)
 
 def task_exists(task_name):
@@ -261,12 +283,22 @@ def start_task(task_name):
     tasks.append(new_task)
     tasks[-1].start()
 
+def format_hours(hours):
+    h = int(hours)
+    m = int((hours - int(hours)) * 60)
+    if h == 0:
+        return f"{m}m"
+    else:
+        return f"{h}h+{m}m"
+
 def show_task_summary(tasks):
     print("")
     for index, task in enumerate(tasks):
-        total_time = task.get_total_time_spent()
-        pointer = '>' if task.is_active() else ' '
-        print(f"{index:02d} {pointer} {total_time:.2f}h  {task.name}")
+        total_time = format_hours(task.get_total_time_spent()).rjust(7,'.')
+        task_time_range = task.get_task_time_range()
+        pointer = '>' if task.is_active() else '.'
+        fill = '..' if task.is_active() else ''
+        print(f"{index:02d} {pointer} {total_time} {task_time_range}{fill} {pointer} {pointer} {pointer} {task.name}")
     total_logged_time = sum(task.get_total_time_spent() for task in tasks)
     visible_tasks = [task for task in tasks if not task.is_unpaid()]
     total_working_time = sum(task.get_total_time_spent() for task in visible_tasks)
@@ -333,6 +365,9 @@ def main():
             print("             Try not to clash tasks if you want to be sure.")
             print("             * This will be improved in the future.")
             print("'exit' OR 'q'                   close time logger CLI")
+            print("")
+            print("WARNING: editing old recordeds (by passing a path like .timelogger/1.1*.json) may not work as expacted.")
+            print("")
         else:
             if not params:
                 # Create new Task
@@ -349,8 +384,8 @@ def main():
                         for task in tasks:
                             task.remove_conflicts_with(TimeBlock(params[0]))
                     tasks[find_task_id(command)].add_time_block(params[0])
-                    print('TODO remove conflicting time periodes (do a y/n dialog)')
-                    print('TODO handle end times in the future. (auto change to now and notify user)')
+                    # print('TODO remove conflicting time periodes (do a y/n dialog)')
+                    # print('TODO handle end times in the future. (auto change to now and notify user)')
                 else:
                     # Merge or Rename task
                     # input: command=param=param2
