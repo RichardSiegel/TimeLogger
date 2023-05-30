@@ -479,6 +479,8 @@ class TimeLogger:
         print("'stop' OR 'x'                   to stop current task")
         print("'undo' OR 'redo'                to undo/redo the last change")
         print("'[name/id]=[name/id]=[name/id]' to rename, merge and create")
+        print("    'some task name'             to create 'some task name'")
+        print("    '.some hidden task'          to create a non-main-work task")
         print("    'a=b'                        to merge b into a")
         print("    'a=b=c'                      to merge b and c into a")
         print("    'a=new_task_name'            to rename a")
