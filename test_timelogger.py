@@ -5,9 +5,11 @@ import unittest
 import json
 from datetime import datetime
 
+from timelogger import AutoCompleter
 from timelogger import Task
 from timelogger import TimeBlock
 from timelogger import TimeConflict
+from timelogger import TimeLogger
 
 today=int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
 
@@ -86,6 +88,12 @@ class TaskTimeBlock(unittest.TestCase):
     def test_greater_than(self):
         self.assertTrue(TimeBlock('9-10') > TimeBlock('8-9'))
 
+    def test_contains_moment(self):
+        self.assertTrue(TimeBlock('9-10').contains_moment(TimeBlock('9:30-now').start))
+        self.assertFalse(TimeBlock('9:30-10').contains_moment(TimeBlock('9:30-now').start))
+        self.assertFalse(TimeBlock('8-9:30').contains_moment(TimeBlock('9:30-now').start))
+        self.assertTrue(TimeBlock('8-now').contains_moment(TimeBlock('9:30-now').start))
+
     def test_stop(self):
         block = TimeBlock()
         self.assertTrue(block.end == None)
@@ -104,17 +112,17 @@ class TaskTimeBlock(unittest.TestCase):
         withinFromStart = TimeBlock("10:15-19:15")
         intersectEnd = TimeBlock("19:15-21:15")
         withinToEnd = TimeBlock("11:15-20:15")
-        self.assertEqual(block.whould_be_without(before),TimeConflict.UNCHANGED)
-        self.assertEqual(block.whould_be_without(after),TimeConflict.UNCHANGED)
-        self.assertEqual(block.whould_be_without(touchingBefore),TimeConflict.UNCHANGED)
-        self.assertEqual(block.whould_be_without(touchingAfter),TimeConflict.UNCHANGED)
-        self.assertEqual(block.whould_be_without(within),TimeConflict.SPLIT)
-        self.assertEqual(block.whould_be_without(arround),TimeConflict.REMOVED)
-        self.assertEqual(block.whould_be_without(block),TimeConflict.REMOVED)
-        self.assertEqual(block.whould_be_without(intersectStart),TimeConflict.CUTOFF_AT_START)
-        self.assertEqual(block.whould_be_without(withinFromStart),TimeConflict.CUTOFF_AT_START)
-        self.assertEqual(block.whould_be_without(intersectEnd),TimeConflict.CUTOFF_AT_END)
-        self.assertEqual(block.whould_be_without(withinToEnd),TimeConflict.CUTOFF_AT_END)
+        self.assertEqual(block.would_be_without(before),TimeConflict.UNCHANGED)
+        self.assertEqual(block.would_be_without(after),TimeConflict.UNCHANGED)
+        self.assertEqual(block.would_be_without(touchingBefore),TimeConflict.UNCHANGED)
+        self.assertEqual(block.would_be_without(touchingAfter),TimeConflict.UNCHANGED)
+        self.assertEqual(block.would_be_without(within),TimeConflict.SPLIT)
+        self.assertEqual(block.would_be_without(arround),TimeConflict.REMOVED)
+        self.assertEqual(block.would_be_without(block),TimeConflict.REMOVED)
+        self.assertEqual(block.would_be_without(intersectStart),TimeConflict.CUTOFF_AT_START)
+        self.assertEqual(block.would_be_without(withinFromStart),TimeConflict.CUTOFF_AT_START)
+        self.assertEqual(block.would_be_without(intersectEnd),TimeConflict.CUTOFF_AT_END)
+        self.assertEqual(block.would_be_without(withinToEnd),TimeConflict.CUTOFF_AT_END)
 
     def test_without_time_before_end_of(self):
         block = TimeBlock('10-12').without_time_before_end_of(TimeBlock('9-11'))
@@ -328,7 +336,136 @@ class TaskTask(unittest.TestCase):
         self.task = Task('until now')
         self.task.add_time_block("13-18")
         self.task.add_time_block("13-now")
-        self.assertEqual(self.task.get_task_time_range(),'13:00-+>now')
+        self.assertEqual(self.task.get_task_time_range(),'13:00-->now')
+
+
+class TaskCommandTesks(unittest.TestCase):
+
+    def setUp(self):
+        self.tl = TimeLogger('./tmp/','test')
+        self.tl.tasks = []
+
+    def test_sub_command_start_new_or_existing_task(self):
+        self.assertEqual(len(self.tl.tasks),0)
+        
+        self.tl.command_create_rename_merge('existing task')
+        self.assertEqual(len(self.tl.tasks),1)
+        self.assertEqual(len(self.tl.get_task('existing task').time_blocks),1)
+        self.assertTrue(self.tl.get_task('existing task').is_active())
+        
+        self.tl.command_create_rename_merge('existing task')
+        self.assertEqual(len(self.tl.tasks),1)
+        self.assertEqual(len(self.tl.get_task('existing task').time_blocks),1)
+        self.assertTrue(self.tl.get_task('existing task').is_active())
+
+        self.tl.get_task('existing task').stop()
+        self.assertFalse(self.tl.get_task('existing task').is_active())
+
+        self.tl.command_create_rename_merge('existing task')
+        self.assertEqual(len(self.tl.tasks),1)
+        self.assertEqual(len(self.tl.get_task('existing task').time_blocks),2)
+        self.assertTrue(self.tl.get_task('existing task').is_active())
+        
+        self.tl.command_create_rename_merge('new task')
+        self.assertEqual(len(self.tl.tasks),2)
+        self.assertEqual(len(self.tl.get_task('new task').time_blocks),1)
+        self.assertFalse(self.tl.get_task('existing task').is_active())
+        self.assertTrue(self.tl.get_task('new task').is_active())
+        
+        self.tl.command_create_rename_merge('0')
+        self.assertEqual(len(self.tl.tasks),2)
+        self.assertEqual(len(self.tl.get_task('existing task').time_blocks),3)
+        self.assertTrue(self.tl.get_task('existing task').is_active())
+        self.assertFalse(self.tl.get_task('new task').is_active())
+
+    def test_sub_command_time_block_to_new_or_existing_task(self):
+        self.tl.command_create_rename_merge('missed task=7-8:15')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'07:00-->08:15')
+        self.assertEqual(self.tl.get_task('missed task').get_total_time_spent(),1.25)
+        self.tl.command_create_rename_merge('0=6-6:15')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'06:00-+>08:15')
+        self.assertEqual(self.tl.get_task('missed task').get_total_time_spent(),1.5)
+        self.assertFalse(self.tl.get_task('missed task').is_active())
+        self.tl.command_create_rename_merge('missed task=9-10')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'06:00-+>10:00')
+        self.tl.command_create_rename_merge('missed task=6-10')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'06:00-->10:00')
+        self.tl.command_create_rename_merge('missed task=10:30-now')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'06:00-+>now')
+        self.assertEqual(len(self.tl.get_task('missed task').time_blocks),2)
+        self.tl.command_create_rename_merge('missed task=9:45-now')
+        self.assertEqual(self.tl.get_task('missed task').get_task_time_range(),'06:00-->now')
+        self.assertEqual(len(self.tl.get_task('missed task').time_blocks),1)
+        self.tl.command_create_rename_merge('task to be split=5-9')
+        self.assertEqual(self.tl.get_task('task to be split').get_total_time_spent(),4)
+        self.tl.command_create_rename_merge('spliting task=6-7')
+        self.assertEqual(self.tl.get_task('spliting task').get_total_time_spent(),1)
+        self.assertEqual(self.tl.get_task('task to be split').get_total_time_spent(),3)
+
+    def test_sub_command_merge(self):
+        self.tl.command_create_rename_merge('task 1')
+        self.tl.command_create_rename_merge('task 2')
+        self.tl.command_create_rename_merge('task 1')
+        self.tl.command_create_rename_merge('task 2')
+        self.tl.command_create_rename_merge('task 1')
+        self.tl.command_create_rename_merge('task 2')
+        self.tl.command_create_rename_merge('task 1')
+        self.tl.command_create_rename_merge('task 2')
+        self.tl.command_create_rename_merge('task 1')
+        self.tl.command_create_rename_merge('task 2')
+        self.assertEqual(len(self.tl.get_task('task 1').time_blocks),5)
+        self.assertEqual(len(self.tl.get_task('task 2').time_blocks),5)
+        self.tl.command_create_rename_merge('task 1=task 2')
+        self.assertEqual(len(self.tl.get_task('task 1').time_blocks),1)
+        self.assertEqual(self.tl.get_task('task 2'),None)
+
+    def test_sub_command_rename(self):
+        self.tl.command_create_rename_merge('old name')
+        self.assertTrue(self.tl.get_task('old name') is not None)
+        self.assertTrue(self.tl.get_task('new name') is None)
+        self.tl.command_create_rename_merge('old name=new name')
+        self.assertTrue(self.tl.get_task('old name') is None)
+        self.assertTrue(self.tl.get_task('new name') is not None)
+
+class TaskAutoCompleter(unittest.TestCase):
+    def setUp(self):
+        current_tasks = [Task('TASK-1234'),Task('TASK-42'),Task('OTHER'),Task('record')]
+        cmds = ['exit','rm ', 'help']
+        known_params = ['MEETING','OTHER','SOMETHING']
+        self.c = AutoCompleter(current_tasks, cmds, known_params)
+
+    def test_completer(self):
+        self.assertEqual(self.c.complete(''),'exit') # TODO and other cmds
+        self.assertEqual(self.c.complete('S'),'SOMETHING')
+        self.assertEqual(self.c.complete('noMatch'),None)
+        self.assertEqual(self.c.complete('no such '),None)
+        self.assertEqual(self.c.complete('no such r'),None)
+        self.assertEqual(self.c.complete('e'),'exit')
+        self.assertEqual(self.c.complete('ex'),'exit')
+        self.assertEqual(self.c.complete('exi'),'exit')
+        self.assertEqual(self.c.complete('exit'),None)
+        self.assertEqual(self.c.complete('exit '),None)
+        self.assertEqual(self.c.complete('h'),'help')
+        self.assertEqual(self.c.complete('help '),None)
+        self.assertEqual(self.c.complete('r'),'rm ')
+        self.assertEqual(self.c.complete('rm'),'rm ')
+        self.assertEqual(self.c.complete('rm T'),'rm TASK-1234') # TODO and other current_tasks
+        self.assertEqual(self.c.complete(' '),'TASK-1234') # TODO and other tasks
+        self.assertEqual(self.c.complete('8'),None)
+        self.assertEqual(self.c.complete('task=8'),'task=8-now')
+        self.assertEqual(self.c.complete('task=-8'),None)
+        self.assertEqual(self.c.complete('task=8:50'),'task=8:50-now')
+        self.assertEqual(self.c.complete('task=8:59'),'task=8:59-now')
+        self.assertEqual(self.c.complete('task=8:59-'),'task=8:59-now')
+        self.assertEqual(self.c.complete('task=21:12-n'),'task=21:12-now')
+        self.assertEqual(self.c.complete('task=11:30-no'),'task=11:30-now')
+        self.assertEqual(self.c.complete('task=8:60'),None)
+        self.assertEqual(self.c.complete('task=24'),None)
+        self.assertEqual(self.c.complete('TASK-42=TASK-1'),'TASK-42=TASK-1234')
+        self.assertEqual(self.c.complete('TASK-42=M'),'TASK-42=MEETING')
+        self.assertEqual(self.c.complete('UNKNOWN='),'UNKNOWN=11-12:15 (EXAMPLE)')
+        self.assertEqual(self.c.complete('UNKNOWN=M'),None)
+        self.assertEqual(self.c.complete('0='),'0=TASK-1234')
 
 
 if __name__ == '__main__':
