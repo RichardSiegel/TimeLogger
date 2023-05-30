@@ -589,6 +589,8 @@ def main():
             tl.undo()
         elif command == "redo":
             tl.redo()
+        elif command == "help":
+            tl.command_help()
         else:
             tl.keep_history()
             tl.command_create_rename_merge(command)
