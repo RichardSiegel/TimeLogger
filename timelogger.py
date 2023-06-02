@@ -566,7 +566,10 @@ def load_lines_to_list(file_path):
 
 def main():
     tl = TimeLogger(path, filepath)
-    completer = AutoCompleter(tl.tasks, ['exit', 'rm ', 'stop', 'help', 'undo', 'redo'], load_lines_to_list(auto_complete_filepath))
+    auto_complete_list = ["Example auto complete", "Add a list of auto-completions as .timelogger/auto_complete.csv"]
+    if os.path.exists(auto_complete_filepath):
+        auto_complete_list = load_lines_to_list(auto_complete_filepath)
+    completer = AutoCompleter(tl.tasks, ['exit', 'rm ', 'stop', 'help', 'undo', 'redo'], auto_complete_list)
     command = ''
     params = []
     while True:
