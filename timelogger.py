@@ -266,6 +266,11 @@ class Task:
             total_hours += time_block.time_spent()
         return total_hours
 
+    def __lt__(self, other):
+        if self.get_first_start_time() is None or other.get_first_start_time() is None:
+            return False
+        return self.get_first_start_time() < other.get_first_start_time()
+
     def get_first_start_time(self):
         if len(self.time_blocks) == 0:
             return None
@@ -500,9 +505,11 @@ class TimeLogger:
             return self.tasks[self.find_task_id(task_ref)]
         return None
 
+    # TODO test
     def normalize_tasks(self):
         for task in self.tasks:
             task.merge_touching_time_blocks()
+        self.tasks = sorted(self.tasks)
 
     def command_create_rename_merge(self,command):
         if self.verbose:
