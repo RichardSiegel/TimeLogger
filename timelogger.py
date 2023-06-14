@@ -1,6 +1,6 @@
 #/bin/python3
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from enum import Enum
 import argparse
 import copy
@@ -10,6 +10,13 @@ import re
 import readline
 import sys
 import time
+
+def last_full_quater_time():
+    current_datetime = datetime.now()
+    current_time = current_datetime.time()
+    rounded_datetime = current_datetime - timedelta(minutes=current_time.minute % 15)
+    rounded_time = rounded_datetime.time()
+    return rounded_time.strftime("%H:%M")
 
 class AutoCompleter:
     def __init__(self , cmds = [], known_params = []):
@@ -52,7 +59,7 @@ class AutoCompleter:
                     prefixed_params = [current_prefix + name for name in current_tasks_names]
                     prefixed_params = prefixed_params + [current_prefix + name for name in self.known_params]
                 if current_input.endswith('=') and current_prefix.rstrip("=") not in current_tasks_names + current_tasks_ids:
-                    prefixed_params = [current_prefix + time for time in ['11-12:15 (EXAMPLE)', '8-now (EXAMPLE)', '14:44-now (EXAMPLE)']]
+                    prefixed_params = [current_prefix + last_full_quater_time() + '-now']
                 possible_suggestions = self.cmds + self.known_params + prefixed_params
                 for ending in ['-now','now','ow','w']:
                     if "=" in current_input and TimeBlock.is_valid_range(current_input.rpartition("=")[-1] + ending):

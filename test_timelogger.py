@@ -4,6 +4,7 @@
 import unittest
 import json
 from datetime import datetime
+import re
 
 from timelogger import AutoCompleter
 from timelogger import Task
@@ -463,7 +464,7 @@ class TaskAutoCompleter(unittest.TestCase):
         self.assertEqual(self.c.complete('task=24'),None)
         self.assertEqual(self.c.complete('TASK-42=TASK-1'),'TASK-42=TASK-1234')
         self.assertEqual(self.c.complete('TASK-42=M'),'TASK-42=MEETING')
-        self.assertEqual(self.c.complete('UNKNOWN='),'UNKNOWN=11-12:15 (EXAMPLE)')
+        self.assertTrue(re.match(r'UNKNOWN=\d{1,2}:(00|15|30|45)-now', self.c.complete('UNKNOWN=')))
         self.assertEqual(self.c.complete('UNKNOWN=M'),None)
         self.assertEqual(self.c.complete('0='),'0=TASK-1234')
 
