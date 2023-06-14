@@ -429,13 +429,13 @@ class TaskCommandTesks(unittest.TestCase):
 
 class TaskAutoCompleter(unittest.TestCase):
     def setUp(self):
-        current_tasks = [Task('TASK-1234'),Task('TASK-42'),Task('OTHER'),Task('record')]
         cmds = ['exit','rm ', 'help']
         known_params = ['MEETING','OTHER','SOMETHING']
-        self.c = AutoCompleter(current_tasks, cmds, known_params)
+        self.c = AutoCompleter(cmds, known_params)
+        self.c.current_tasks = [Task('TASK-1234'),Task('TASK-42'),Task('OTHER'),Task('record')]
 
     def test_completer(self):
-        self.assertEqual(self.c.complete(''),'exit') # TODO and other cmds
+        self.assertEqual(self.c.complete(''),'exit')
         self.assertEqual(self.c.complete('S'),'SOMETHING')
         self.assertEqual(self.c.complete('noMatch'),None)
         self.assertEqual(self.c.complete('no such '),None)
@@ -449,8 +449,8 @@ class TaskAutoCompleter(unittest.TestCase):
         self.assertEqual(self.c.complete('help '),None)
         self.assertEqual(self.c.complete('r'),'rm ')
         self.assertEqual(self.c.complete('rm'),'rm ')
-        self.assertEqual(self.c.complete('rm T'),'rm TASK-1234') # TODO and other current_tasks
-        self.assertEqual(self.c.complete(' '),'TASK-1234') # TODO and other tasks
+        self.assertEqual(self.c.complete('rm T'),'rm TASK-1234')
+        self.assertEqual(self.c.complete(' '),'TASK-1234')
         self.assertEqual(self.c.complete('8'),None)
         self.assertEqual(self.c.complete('task=8'),'task=8-now')
         self.assertEqual(self.c.complete('task=-8'),None)

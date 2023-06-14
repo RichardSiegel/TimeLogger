@@ -12,11 +12,10 @@ import sys
 import time
 
 class AutoCompleter:
-    def __init__(self ,current_tasks = [], cmds = [], known_params = []):
+    def __init__(self , cmds = [], known_params = []):
         readline.set_completer(self.complete)
         readline.parse_and_bind("tab: complete")
         readline.set_completer_delims('\t\n')
-        self.current_tasks = current_tasks
         self.cmds = cmds
         self.known_params = known_params
         self.history = []
@@ -65,7 +64,8 @@ class AutoCompleter:
         except IndexError:
             return None
 
-    def get_cli_input(self, request_test):
+    def get_cli_input(self, current_tasks, request_test):
+        self.current_tasks = current_tasks
         cmd_string = input(request_test)
         # self.history.append(cmd_string)
         return cmd_string
@@ -576,7 +576,7 @@ def main():
     auto_complete_list = ["Example auto complete", "Add a list of auto-completions as .timelogger/auto_complete.csv"]
     if os.path.exists(auto_complete_filepath):
         auto_complete_list = load_lines_to_list(auto_complete_filepath)
-    completer = AutoCompleter(tl.tasks, ['exit', 'rm ', 'stop', 'help', 'undo', 'redo'], auto_complete_list)
+    completer = AutoCompleter(['exit', 'rm ', 'stop', 'help', 'undo', 'redo'], auto_complete_list)
     command = ''
     params = []
     while True:
@@ -613,7 +613,7 @@ def main():
             print()
         print()
 
-        command = completer.get_cli_input('\n[Tab] to auto-complete > ').strip()
+        command = completer.get_cli_input(tl.tasks, '\n[Tab] to auto-complete > ').strip()
 
 if __name__ == "__main__":
     main()
