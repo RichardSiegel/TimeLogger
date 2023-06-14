@@ -59,7 +59,7 @@ class AutoCompleter:
                     prefixed_params = [current_prefix + name for name in current_tasks_names]
                     prefixed_params = prefixed_params + [current_prefix + name for name in self.known_params]
                 if current_input.endswith('=') and current_prefix.rstrip("=") not in current_tasks_names + current_tasks_ids:
-                    prefixed_params = [current_prefix + last_full_quater_time() + '-now']
+                    prefixed_params = [current_prefix + last_full_quater_time()]
                 possible_suggestions = self.cmds + self.known_params + prefixed_params
                 for ending in ['-now','now','ow','w']:
                     if "=" in current_input and TimeBlock.is_valid_range(current_input.rpartition("=")[-1] + ending):
