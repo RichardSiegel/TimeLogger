@@ -464,7 +464,7 @@ class TaskAutoCompleter(unittest.TestCase):
         self.assertEqual(self.c.complete('task=24'),None)
         self.assertEqual(self.c.complete('TASK-42=TASK-1'),'TASK-42=TASK-1234')
         self.assertEqual(self.c.complete('TASK-42=M'),'TASK-42=MEETING')
-        self.assertTrue(re.match(r'UNKNOWN=\d{1,2}:(00|15|30|45)', self.c.complete('UNKNOWN=')))
+        self.assertTrue(re.match(r'UNKNOWN=\d{1,2}:(00|15|30|45)-now', self.c.complete('UNKNOWN=')))
         self.assertEqual(self.c.complete('UNKNOWN=M'),None)
         self.assertEqual(self.c.complete('0='),'0=TASK-1234')
 
