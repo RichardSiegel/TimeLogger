@@ -1,6 +1,7 @@
 #/bin/python3
 
 from datetime import datetime, timedelta
+from dateutil.relativedelta import relativedelta
 from enum import Enum
 import argparse
 import copy
@@ -562,6 +563,17 @@ class TimeLogger:
         if self.verbose:
             print("sub_command_rename")
         self.rename_task(task_refs[0],task_refs[-1])
+
+    def command_prev_day(self):
+        path = self.filepath.split('/')
+        file_name = path[-1]
+        parrent_dir = path[:-1]
+        date_string, weekday = file_name.split('_')
+        current_date = datetime.strptime(date_string, '%Y-%m-%d').date()
+        previous_date = current_date - relativedelta(days=1)
+        path_elements = parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
+        self.filepath = '/'.join(path_elements)
+
 
 path = './.timelogger/'
 filepath = path + datetime.now().strftime("%Y-%m-%d_%A.json")

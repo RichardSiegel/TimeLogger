@@ -12,10 +12,15 @@ from timelogger import TimeBlock
 from timelogger import TimeConflict
 from timelogger import TimeLogger
 
-today=int(datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+
+def todays_datetime(h,m):
+    return datetime.fromtimestamp(1688032800.0).replace(hour=h, minute=m, second=0, microsecond=0)
 
 def todays_timestamp(h,m):
-    return datetime.now().replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
+    return datetime.fromtimestamp(1688032800.0).replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
+
+today_datetime=todays_datetime(0,0)
+today=todays_timestamp(0,0)
 
 class TaskTimeBlock(unittest.TestCase):
     def test_constructor_without_time(self):
@@ -343,8 +348,18 @@ class TaskTask(unittest.TestCase):
 class TaskCommandTesks(unittest.TestCase):
 
     def setUp(self):
-        self.tl = TimeLogger('./tmp/','test')
+        path = './tmp/'
+        self.tl = TimeLogger(path,path + today_datetime.strftime("%Y-%m-%d_%A.json"))
         self.tl.tasks = []
+
+    def test_command_prev_day(self):
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-29_Thursday.json')
+        self.tl.command_prev_day()
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-28_Wednesday.json')
+        for _ in range(7*40):
+            self.tl.command_prev_day()
+        self.assertEqual(self.tl.filepath,'./tmp/2022-09-21_Wednesday.json')
+
 
     def test_sub_command_start_new_or_existing_task(self):
         self.assertEqual(len(self.tl.tasks),0)
