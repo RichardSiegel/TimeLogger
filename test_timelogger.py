@@ -5,7 +5,7 @@ import unittest
 import json
 from datetime import datetime
 import re
-
+import os
 from timelogger import AutoCompleter
 from timelogger import Task
 from timelogger import TimeBlock
@@ -351,6 +351,14 @@ class TaskCommandTesks(unittest.TestCase):
         path = './tmp/'
         self.tl = TimeLogger(path,path + today_datetime.strftime("%Y-%m-%d_%A.json"))
         self.tl.tasks = []
+
+    def test_save_tasks_to_file(self):
+        self.tl.command_create_rename_merge('example')
+        self.tl.save_tasks_to_file()
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-29_Thursday.json')
+        self.assertTrue(os.path.exists('./tmp/2023-06-29_Thursday.json'))
+        os.remove('./tmp/2023-06-29_Thursday.json')
+        
 
     def test_command_prev_day(self):
         self.tl.command_create_rename_merge('example')

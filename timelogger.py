@@ -368,7 +368,7 @@ class TimeLogger:
         if not os.path.exists(self.path):
             os.makedirs(self.path)
         data = [task.get_json() for task in self.tasks]
-        with open(filepath, 'w') as file:
+        with open(self.filepath, 'w') as file:
             json.dump(data, file)
 
     def task_exists(self,task_name):
