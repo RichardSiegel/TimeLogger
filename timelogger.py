@@ -429,12 +429,12 @@ class TimeLogger:
             return f"{h}h+{m}m"
 
     def show_task_summary(self):
-        total_logged_time = sum(task.get_total_time_spent() for task in self.tasks)
+        total_logged_time = self.format_hours(sum(task.get_total_time_spent() for task in self.tasks))
         visible_tasks = [task for task in self.tasks if not task.is_unpaid()]
-        total_working_time = sum(task.get_total_time_spent() for task in visible_tasks)
-        print(f"Total logged time: {total_logged_time:.2f} hours")
+        total_working_time = self.format_hours(sum(task.get_total_time_spent() for task in visible_tasks))
+        print(f"Total logged time: {total_logged_time}")
         if not total_logged_time == total_working_time:
-            print(f"Total working time: {total_working_time:.2f} hours")
+            print(f"Total working time: {total_working_time}")
         print()
         for index, task in enumerate(self.tasks):
             total_time = self.format_hours(task.get_total_time_spent()).rjust(7,'.')
