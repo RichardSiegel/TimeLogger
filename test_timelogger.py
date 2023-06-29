@@ -353,9 +353,12 @@ class TaskCommandTesks(unittest.TestCase):
         self.tl.tasks = []
 
     def test_command_prev_day(self):
+        self.tl.command_create_rename_merge('example')
+        self.assertEqual(len(self.tl.tasks),1)
         self.assertEqual(self.tl.filepath,'./tmp/2023-06-29_Thursday.json')
         self.tl.command_prev_day()
         self.assertEqual(self.tl.filepath,'./tmp/2023-06-28_Wednesday.json')
+        self.assertEqual(len(self.tl.tasks),0)
         for _ in range(7*40):
             self.tl.command_prev_day()
         self.assertEqual(self.tl.filepath,'./tmp/2022-09-21_Wednesday.json')

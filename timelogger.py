@@ -327,6 +327,9 @@ class Task:
 
 class TimeLogger:
     def __init__(self, path, filepath):
+        self.load_file(path, filepath)
+
+    def load_file(self, path, filepath):
         self.verbose = False
         self.tasks = []
         self.path = path
@@ -572,7 +575,10 @@ class TimeLogger:
         current_date = datetime.strptime(date_string, '%Y-%m-%d').date()
         previous_date = current_date - relativedelta(days=1)
         path_elements = parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
-        self.filepath = '/'.join(path_elements)
+        path = '/'.join(parrent_dir)+'/'
+        filepath = '/'.join(path_elements)
+        self.load_file(path, filepath)
+        
 
 
 path = './.timelogger/'
@@ -605,6 +611,8 @@ def main():
             pass
         elif command == "exit" or command == "q":
             break
+        elif command == "<":
+            tl.command_prev_day()
         elif command.startswith("rm "):
             tl.keep_history()
             tl.command_remove(command)
@@ -626,6 +634,8 @@ def main():
         if command != "help":
             tl.save_tasks_to_file()
 
+            print('LOG stored in: ' + tl.filepath)
+            print()
             tl.show_task_summary()
             print()
             tl.show_task_percentages()
