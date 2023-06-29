@@ -464,6 +464,7 @@ class TimeLogger:
                 print(f"{task.name} {rounded_percentages[i]}%;", end=" ")
         if visible_tasks and correction != 0:
             print()
+            print()
             print(f"Percent correction on last task to ensure sum of 100%: {correction}%")
 
     def task_id_to_name(self,possible_id):
