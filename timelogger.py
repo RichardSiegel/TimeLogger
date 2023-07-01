@@ -1,6 +1,6 @@
 #/bin/python3
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date, time
 from dateutil.relativedelta import relativedelta
 from enum import Enum
 import argparse
@@ -12,12 +12,6 @@ import readline
 import sys
 import time
 
-def last_full_quater_time():
-    current_datetime = datetime.now()
-    current_time = current_datetime.time()
-    rounded_datetime = current_datetime - timedelta(minutes=current_time.minute % 15)
-    rounded_time = rounded_datetime.time()
-    return rounded_time.strftime("%H:%M")
 
 class AutoCompleter:
     def __init__(self , cmds = [], known_params = []):
@@ -36,6 +30,13 @@ class AutoCompleter:
             if parts[-1] not in parts[:-1]:
                 unique_lst.append(item)
         self.suggestions = unique_lst
+
+    def last_full_quater_time(self):
+        current_datetime = datetime.now()
+        current_time = current_datetime.time()
+        rounded_datetime = current_datetime - timedelta(minutes=current_time.minute % 15)
+        rounded_time = rounded_datetime.time()
+        return rounded_time.strftime("%H:%M")
 
     def complete(self, raw_current_input, state = 0):
         if state == 0:
@@ -60,7 +61,7 @@ class AutoCompleter:
                     prefixed_params = [current_prefix + name for name in current_tasks_names]
                     prefixed_params = prefixed_params + [current_prefix + name for name in self.known_params]
                 if current_input.endswith('=') and current_prefix.rstrip("=") not in current_tasks_names + current_tasks_ids:
-                    prefixed_params = [current_prefix + last_full_quater_time() + '-now']
+                    prefixed_params = [current_prefix + self.last_full_quater_time() + '-now']
                 possible_suggestions = self.cmds + self.known_params + prefixed_params
                 for ending in ['-now','now','ow','w']:
                     if "=" in current_input and TimeBlock.is_valid_range(current_input.rpartition("=")[-1] + ending):
@@ -72,7 +73,8 @@ class AutoCompleter:
         except IndexError:
             return None
 
-    def get_cli_input(self, current_tasks, request_test):
+    def get_cli_input(self, current_tasks, request_test, current_datetime):
+        self.current_datetime = current_datetime
         self.current_tasks = current_tasks
         cmd_string = input(request_test)
         # self.history.append(cmd_string)
@@ -85,15 +87,29 @@ class TimeConflict(Enum):
     CUTOFF_AT_END = 4
     REMOVED = 5
 
+# TODO cleanup the type mess, which made this function nessesary
+def date_to_datetime(current_time):
+    if isinstance(current_time, datetime):
+        return current_time
+    elif isinstance(current_time, date):
+        return datetime(current_time.year, current_time.month, current_time.day)
+    else:
+        raise ValueError("Input must be a datetime.date or datetime.datetime object")
+
+def now_for_date(source_datetime):
+    current_time = datetime.now().time()
+    new_datetime = datetime.combine(source_datetime.date(), current_time)
+    return new_datetime
+
 class TimeBlock:
-    def __init__(self, time_range=None):
+    def __init__(self, current_datetime, time_range=None):
         if time_range is None:
-            self.start = time.time()
+            self.start = now_for_date(date_to_datetime(current_datetime)).timestamp()
             self.end = None
         else:
             s, e = time_range.split('-')
-            self.start = self.string_to_timestamp(s)
-            self.end = self.string_to_timestamp(e)
+            self.start = self.string_to_timestamp(date_to_datetime(current_datetime), s)
+            self.end = self.string_to_timestamp(date_to_datetime(current_datetime), e)
         if self.start is None:
             self.end = None
         elif self.end is not None and int(self.start) >= int(self.end):
@@ -105,19 +121,19 @@ class TimeBlock:
         if not time_range.count('-') == 1:
             return False
         s, e = time_range.split('-')
-        start = TimeBlock.string_to_timestamp(s)
-        end = TimeBlock.string_to_timestamp(e)
+        start = TimeBlock.string_to_timestamp(datetime.now(), s)
+        end = TimeBlock.string_to_timestamp(datetime.now(), e)
         return start is not None and (end is not None or e == 'now')
 
     @staticmethod
-    def string_to_timestamp(time_string):
+    def string_to_timestamp(today_datetime, time_string):
         if re.match(r'^(2[0-3]|[0-1]?[0-9])(:[0-5][0-9])?$', time_string) is None:
             return None
         if ':' in time_string:
             h, m = map(int, time_string.split(':'))
-            return datetime.now().replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
+            return today_datetime.replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
         else:
-            return datetime.now().replace(hour=int(time_string), minute=0, second=0, microsecond=0).timestamp()
+            return today_datetime.replace(hour=int(time_string), minute=0, second=0, microsecond=0).timestamp()
 
     def __repr__(self):
         return self.to_string()
@@ -193,7 +209,8 @@ class TimeBlock:
     
 
 class Task:
-    def __init__(self, name):
+    def __init__(self, name, current_datetime):
+        self.current_datetime = current_datetime
         self.name = name
         self.description = ""
         self.time_blocks = []
@@ -208,7 +225,7 @@ class Task:
         if not self.is_active():
             if len(self.time_blocks) > 0 and self.time_blocks[-1].end is None:
                 self.stop()
-            self.time_blocks.append(TimeBlock())
+            self.time_blocks.append(TimeBlock(self.current_datetime))
 
     def stop(self):
         if len(self.time_blocks) > 0 and self.time_blocks[-1].end is None:
@@ -217,7 +234,7 @@ class Task:
     def add_time_block(self, time_range):
         new_block = time_range
         if isinstance(time_range, str):
-            new_block = TimeBlock(time_range)
+            new_block = TimeBlock(self.current_datetime, time_range)
         # Add only valid time blocks
         if new_block.start is not None:
             self.remove_conflicts_with(new_block)
@@ -294,7 +311,7 @@ class Task:
         return sorted(self.time_blocks, key=lambda block: block.end)[-1].end
 
     def get_task_time_range(self):
-        task_time_range = TimeBlock()
+        task_time_range = TimeBlock(self.current_datetime)
         task_time_range.start = self.get_first_start_time()
         task_time_range.end = self.get_last_end_time()
         if len(self.time_blocks) > 1:
@@ -311,29 +328,33 @@ class Task:
         return json.dumps(data)
 
     @staticmethod
-    def load_from_json(json_str):
+    def load_from_json(current_datetime, json_str):
         data = json.loads(json_str)
         name = data["name"]
         description = data["description"]
         time_blocks_data = data["time_blocks"]
-        task = Task(name)
+        task = Task(name, current_datetime)
         task.description = description
         for x in time_blocks_data:
-            block = TimeBlock()
+            block = TimeBlock(current_datetime)
             block.start = x['start']
             block.end = x['end']
             task.time_blocks.append(block)
         return task
 
 class TimeLogger:
-    def __init__(self, path, filepath):
-        self.load_file(path, filepath)
+    def __init__(self, filepath):
+        self.load_file(filepath)
 
-    def load_file(self, path, filepath):
+    def load_file(self, filepath):
+        path = filepath.split('/')
         self.verbose = False
         self.tasks = []
-        self.path = path
         self.filepath = filepath
+        path = filepath.split('/')
+        self.file_name = path[-1]
+        self.parrent_dir = path[:-1]
+        self.current_datetime = datetime.strptime(self.file_name.split('_')[0], '%Y-%m-%d').date()
         if os.path.isfile(self.filepath):
             self.load_tasks_from_file()
         self.history = []
@@ -361,12 +382,12 @@ class TimeLogger:
         with open(self.filepath, 'r') as file:
             data = json.load(file)
             for task_data in data:
-                task = Task.load_from_json(task_data)
+                task = Task.load_from_json(self.current_datetime, task_data)
                 self.tasks.append(task)
 
     def save_tasks_to_file(self):
-        if not os.path.exists(self.path):
-            os.makedirs(self.path)
+        if not os.path.exists('/'.join(self.parrent_dir)):
+            os.makedirs('/'.join(self.parrent_dir))
         data = [task.get_json() for task in self.tasks]
         with open(self.filepath, 'w') as file:
             json.dump(data, file)
@@ -409,14 +430,14 @@ class TimeLogger:
             task.stop()
 
     def create_task(self,task_name):
-        self.tasks.append(Task(task_name))
+        self.tasks.append(Task(task_name, self.current_datetime))
 
     def start_task(self,task_name):
         for task in self.tasks:
             if task.name == task_name:
                 task.start()
                 return
-        new_task = Task(task_name)
+        new_task = Task(task_name, self.current_datetime)
         self.tasks.append(new_task)
         self.tasks[-1].start()
 
@@ -552,7 +573,7 @@ class TimeLogger:
         if self.verbose:
             print("sub_command_time_block_to_new_or_existing_task")
         for task in self.tasks:
-            task.remove_conflicts_with(TimeBlock(time_range))
+            task.remove_conflicts_with(TimeBlock(self.current_datetime, time_range))
         if not self.task_exists(task_ref):
             self.create_task(task_ref)
         self.get_task(task_ref).add_time_block(time_range)
@@ -569,27 +590,12 @@ class TimeLogger:
         self.rename_task(task_refs[0],task_refs[-1])
 
     def command_prev_day(self):
-        path = self.filepath.split('/')
-        file_name = path[-1]
-        parrent_dir = path[:-1]
-        date_string, weekday = file_name.split('_')
-        current_date = datetime.strptime(date_string, '%Y-%m-%d').date()
-        previous_date = current_date - relativedelta(days=1)
-        path_elements = parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
-        path = '/'.join(parrent_dir)+'/'
+        previous_date = self.current_datetime - relativedelta(days=1)
+        path_elements = self.parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
+        path = '/'.join(self.parrent_dir)+'/'
         filepath = '/'.join(path_elements)
-        self.load_file(path, filepath)
+        self.load_file(filepath)
         
-
-
-path = './.timelogger/'
-filepath = path + datetime.now().strftime("%Y-%m-%d_%A.json")
-auto_complete_filepath = path + 'auto_complete.csv'
-
-if len(sys.argv) > 1:
-    for arg in sys.argv:
-        if arg.endswith('.json'):
-            filepath = arg
 
 def load_lines_to_list(file_path):
     with open(file_path, "r") as file:
@@ -598,7 +604,16 @@ def load_lines_to_list(file_path):
 
 
 def main():
-    tl = TimeLogger(path, filepath)
+    path = './.timelogger/'
+    filepath = path + datetime.now().strftime("%Y-%m-%d_%A.json")
+    auto_complete_filepath = path + 'auto_complete.csv'
+
+    if len(sys.argv) > 1:
+        for arg in sys.argv:
+            if arg.endswith('.json'):
+                filepath = arg
+
+    tl = TimeLogger(filepath)
     auto_complete_list = ["Example auto complete", "Add a list of auto-completions as .timelogger/auto_complete.csv"]
     if os.path.exists(auto_complete_filepath):
         auto_complete_list = load_lines_to_list(auto_complete_filepath)
@@ -643,7 +658,7 @@ def main():
             print()
         print()
 
-        command = completer.get_cli_input(tl.tasks, '\n[Tab] to auto-complete > ').strip()
+        command = completer.get_cli_input(tl.tasks, '\n[Tab] to auto-complete > ', tl.current_datetime).strip()
 
 if __name__ == "__main__":
     main()

@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 import re
 import os
+import shutil
 from timelogger import AutoCompleter
 from timelogger import Task
 from timelogger import TimeBlock
@@ -13,33 +14,37 @@ from timelogger import TimeConflict
 from timelogger import TimeLogger
 
 
+test_date = datetime.strptime('2023-06-01', '%Y-%m-%d').timestamp()
+
 def todays_datetime(h,m):
-    return datetime.fromtimestamp(1688032800.0).replace(hour=h, minute=m, second=0, microsecond=0)
+    return datetime.fromtimestamp(test_date).replace(hour=h, minute=m, second=0, microsecond=0)
 
 def todays_timestamp(h,m):
-    return datetime.fromtimestamp(1688032800.0).replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
+    return datetime.fromtimestamp(test_date).replace(hour=h, minute=m, second=0, microsecond=0).timestamp()
 
+# TODO cleanup variables
 today_datetime=todays_datetime(0,0)
+current_datetime=today_datetime
 today=todays_timestamp(0,0)
 
 class TaskTimeBlock(unittest.TestCase):
     def test_constructor_without_time(self):
-        block = TimeBlock()
+        block = TimeBlock(current_datetime)
         self.assertTrue(block.start != None)
         self.assertEqual(block.end,None)
-        block = TimeBlock('9-17')
+        block = TimeBlock(current_datetime, '9-17')
         self.assertEqual(block.start-today,3600*9)
         self.assertEqual(block.end-today,3600*17)
-        block = TimeBlock('9-1')
+        block = TimeBlock(current_datetime, '9-1')
         self.assertEqual(block.start,None)
         self.assertEqual(block.end,None)
-        block = TimeBlock('9-now')
+        block = TimeBlock(current_datetime, '9-now')
         self.assertEqual(block.start-today,3600*9)
         self.assertEqual(block.end,None)
-        block = TimeBlock('now-20')
+        block = TimeBlock(current_datetime, 'now-20')
         self.assertEqual(block.start,None)
         self.assertEqual(block.end,None)
-        block = TimeBlock('now-now')
+        block = TimeBlock(current_datetime, 'now-now')
         self.assertEqual(block.start,None)
         self.assertEqual(block.end,None)
 
@@ -55,69 +60,69 @@ class TaskTimeBlock(unittest.TestCase):
         self.assertFalse(TimeBlock.is_valid_range(""))
 
     def test_to_string(self):
-        self.assertTrue(TimeBlock().to_string().endswith('-now'))
-        self.assertEqual(TimeBlock('10-23').to_string(),"10:00-23:00")
+        self.assertTrue(TimeBlock(current_datetime).to_string().endswith('-now'))
+        self.assertEqual(TimeBlock(current_datetime, '10-23').to_string(),"10:00-23:00")
 
     def test_representation(self):
-        self.assertEqual(f"{TimeBlock('10-23')}","10:00-23:00")
-        self.assertEqual(f"{TimeBlock('10:45-23:15')}","10:45-23:15")
-        self.assertEqual(f"{TimeBlock('10-now')}","10:00-now")
+        self.assertEqual(f"{TimeBlock(current_datetime, '10-23')}","10:00-23:00")
+        self.assertEqual(f"{TimeBlock(current_datetime, '10:45-23:15')}","10:45-23:15")
+        self.assertEqual(f"{TimeBlock(current_datetime, '10-now')}","10:00-now")
 
     def test_constructor_without_end_time(self):
-        block = TimeBlock("7-now")
+        block = TimeBlock(current_datetime, "7-now")
         self.assertEqual(block.start-today, 3600*7)
         self.assertEqual(block.end, None)
 
     def test_constructor_with_time(self):
-        block = TimeBlock("10:00-23:30")
+        block = TimeBlock(current_datetime, "10:00-23:30")
         self.assertEqual(block.start-today, 3600*10)
         self.assertEqual(block.end-today, 3600*23.5)
 
     def test_string_to_timestamp(self):
-        self.assertEqual(TimeBlock.string_to_timestamp(''),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('9'),todays_timestamp(9, 0))
-        self.assertEqual(TimeBlock.string_to_timestamp('9:00'),todays_timestamp(9, 0))
-        self.assertEqual(TimeBlock.string_to_timestamp('8:15'),todays_timestamp(8, 15))
-        self.assertEqual(TimeBlock.string_to_timestamp('21:59'),todays_timestamp(21, 59))
-        self.assertEqual(TimeBlock.string_to_timestamp('24:00'),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('23:60'),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('23:050'),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('-1'),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('0'),todays_timestamp(0, 0))
-        self.assertEqual(TimeBlock.string_to_timestamp('23'),todays_timestamp(23, 0))
-        self.assertEqual(TimeBlock.string_to_timestamp('24'),None)
-        self.assertEqual(TimeBlock.string_to_timestamp('30'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, ''),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '9'),todays_timestamp(9, 0))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '9:00'),todays_timestamp(9, 0))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '8:15'),todays_timestamp(8, 15))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '21:59'),todays_timestamp(21, 59))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '24:00'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '23:60'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '23:050'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '-1'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '0'),todays_timestamp(0, 0))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '23'),todays_timestamp(23, 0))
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '24'),None)
+        self.assertEqual(TimeBlock.string_to_timestamp(today_datetime, '30'),None)
 
     def test_less_than(self):
-        self.assertTrue(TimeBlock('8-9') < TimeBlock('9-10'))
+        self.assertTrue(TimeBlock(current_datetime, '8-9') < TimeBlock(current_datetime, '9-10'))
 
     def test_greater_than(self):
-        self.assertTrue(TimeBlock('9-10') > TimeBlock('8-9'))
+        self.assertTrue(TimeBlock(current_datetime, '9-10') > TimeBlock(current_datetime, '8-9'))
 
     def test_contains_moment(self):
-        self.assertTrue(TimeBlock('9-10').contains_moment(TimeBlock('9:30-now').start))
-        self.assertFalse(TimeBlock('9:30-10').contains_moment(TimeBlock('9:30-now').start))
-        self.assertFalse(TimeBlock('8-9:30').contains_moment(TimeBlock('9:30-now').start))
-        self.assertTrue(TimeBlock('8-now').contains_moment(TimeBlock('9:30-now').start))
+        self.assertTrue(TimeBlock(current_datetime, '9-10').contains_moment(TimeBlock(current_datetime, '9:30-now').start))
+        self.assertFalse(TimeBlock(current_datetime, '9:30-10').contains_moment(TimeBlock(current_datetime, '9:30-now').start))
+        self.assertFalse(TimeBlock(current_datetime, '8-9:30').contains_moment(TimeBlock(current_datetime, '9:30-now').start))
+        self.assertTrue(TimeBlock(current_datetime, '8-now').contains_moment(TimeBlock(current_datetime, '9:30-now').start))
 
     def test_stop(self):
-        block = TimeBlock()
+        block = TimeBlock(current_datetime)
         self.assertTrue(block.end == None)
         block.stop()
         self.assertTrue(block.end != None)
 
     def test_find_relation(self):
-        block = TimeBlock("10:15-20:15")
-        before = TimeBlock("8:15-9:15")
-        after = TimeBlock("21:15-23:15")
-        touchingBefore = TimeBlock("9:15-10:15")
-        touchingAfter = TimeBlock("20:15-21:15")
-        within = TimeBlock("11:15-19:15")
-        arround = TimeBlock("9:15-21:15")
-        intersectStart = TimeBlock("9:15-11:15")
-        withinFromStart = TimeBlock("10:15-19:15")
-        intersectEnd = TimeBlock("19:15-21:15")
-        withinToEnd = TimeBlock("11:15-20:15")
+        block = TimeBlock(current_datetime, "10:15-20:15")
+        before = TimeBlock(current_datetime, "8:15-9:15")
+        after = TimeBlock(current_datetime, "21:15-23:15")
+        touchingBefore = TimeBlock(current_datetime, "9:15-10:15")
+        touchingAfter = TimeBlock(current_datetime, "20:15-21:15")
+        within = TimeBlock(current_datetime, "11:15-19:15")
+        arround = TimeBlock(current_datetime, "9:15-21:15")
+        intersectStart = TimeBlock(current_datetime, "9:15-11:15")
+        withinFromStart = TimeBlock(current_datetime, "10:15-19:15")
+        intersectEnd = TimeBlock(current_datetime, "19:15-21:15")
+        withinToEnd = TimeBlock(current_datetime, "11:15-20:15")
         self.assertEqual(block.would_be_without(before),TimeConflict.UNCHANGED)
         self.assertEqual(block.would_be_without(after),TimeConflict.UNCHANGED)
         self.assertEqual(block.would_be_without(touchingBefore),TimeConflict.UNCHANGED)
@@ -131,25 +136,25 @@ class TaskTimeBlock(unittest.TestCase):
         self.assertEqual(block.would_be_without(withinToEnd),TimeConflict.CUTOFF_AT_END)
 
     def test_without_time_before_end_of(self):
-        block = TimeBlock('10-12').without_time_before_end_of(TimeBlock('9-11'))
+        block = TimeBlock(current_datetime, '10-12').without_time_before_end_of(TimeBlock(current_datetime, '9-11'))
         self.assertEqual((block.start-today)/3600, 11)
         self.assertEqual((block.end-today)/3600, 12)
 
     def test_without_time_after_start_of(self):
-        block = TimeBlock('10-12').without_time_after_start_of(TimeBlock('11-15'))
+        block = TimeBlock(current_datetime, '10-12').without_time_after_start_of(TimeBlock(current_datetime, '11-15'))
         self.assertEqual((block.start-today)/3600, 10)
         self.assertEqual((block.end-today)/3600, 11)
 
     def test_time_spent(self):
-        self.assertEqual(TimeBlock('10-12').time_spent(), 2)
-        self.assertEqual(TimeBlock('10:45-12').time_spent(), 1.25)
-        self.assertTrue(TimeBlock('0-now').time_spent() > 0)
-        self.assertEqual(TimeBlock('now-20').time_spent(), 0)
+        self.assertEqual(TimeBlock(current_datetime, '10-12').time_spent(), 2)
+        self.assertEqual(TimeBlock(current_datetime, '10:45-12').time_spent(), 1.25)
+        self.assertTrue(TimeBlock(current_datetime, '0-now').time_spent() > 0)
+        self.assertEqual(TimeBlock(current_datetime, 'now-20').time_spent(), 0)
 
 
 class TaskTask(unittest.TestCase):
     def setUp(self):
-        self.task = Task("Test Task")
+        self.task = Task("Test Task", current_datetime)
 
     def test_is_active(self):
         self.assertFalse(self.task.is_active())
@@ -249,10 +254,10 @@ class TaskTask(unittest.TestCase):
         self.assertEqual(self.task.description, "Test description")
 
     def test_merge_with(self):
-        task1 = Task("Task 1")
+        task1 = Task("Task 1", current_datetime)
         task1.start()
         task1.stop()
-        task2 = Task("Task 2")
+        task2 = Task("Task 2", current_datetime)
         task2.start()
         task2.stop()
         self.task.merge_with(task1)
@@ -260,11 +265,11 @@ class TaskTask(unittest.TestCase):
         self.assertEqual(len(self.task.time_blocks), 2)
 
     def test_merge_with_removing_time_blocks(self):
-        manyTasks = Task("ManyTasks")
+        manyTasks = Task("ManyTasks", current_datetime)
         self.task.add_time_block("6-7")
         self.task.add_time_block("7-8")
         self.task.add_time_block("8-9")
-        intersectingTask = Task("Intersecting Task")
+        intersectingTask = Task("Intersecting Task", current_datetime)
         intersectingTask.add_time_block("6:30-8:30")
         self.task.merge_with(intersectingTask)
         self.assertEqual(self.task.get_total_time_spent(), 3)
@@ -300,7 +305,7 @@ class TaskTask(unittest.TestCase):
                 {"start": float(from_2), "end": float(to_2)}
             ]
         })
-        loaded_task = Task.load_from_json(json_str)
+        loaded_task = Task.load_from_json(today_datetime, json_str)
         self.assertEqual(loaded_task.name, "Test Task")
         self.assertEqual(loaded_task.description, "Test description")
         self.assertEqual(len(loaded_task.time_blocks), 2)
@@ -311,7 +316,7 @@ class TaskTask(unittest.TestCase):
         self.task.add_time_block("4-5")
         self.task.add_time_block("2-3")
         self.assertEqual(self.task.get_first_start_time()-today,3600*1)
-        self.task = Task('mixed test times')
+        self.task = Task('mixed test times', current_datetime)
         self.task.add_time_block("9-1")
         self.task.add_time_block("6-9")
         self.task.add_time_block("8-4")
@@ -324,7 +329,7 @@ class TaskTask(unittest.TestCase):
         self.task.add_time_block("4-5")
         self.task.add_time_block("2-3")
         self.assertEqual(self.task.get_last_end_time()-today,3600*5)
-        self.task = Task('mixed test times')
+        self.task = Task('mixed test times', current_datetime)
         self.task.add_time_block("0-1")
         self.task.add_time_block("1-9")
         self.task.add_time_block("1-4")
@@ -336,10 +341,10 @@ class TaskTask(unittest.TestCase):
         self.task.add_time_block("4-5")
         self.task.add_time_block("2-3")
         self.assertEqual(self.task.get_task_time_range(),'01:00-+>05:00')
-        self.task = Task('just one block')
+        self.task = Task('just one block', current_datetime)
         self.task.add_time_block("9:15-17:30")
         self.assertEqual(self.task.get_task_time_range(),'09:15-->17:30')
-        self.task = Task('until now')
+        self.task = Task('until now', current_datetime)
         self.task.add_time_block("13-18")
         self.task.add_time_block("13-now")
         self.assertEqual(self.task.get_task_time_range(),'13:00-->now')
@@ -348,29 +353,37 @@ class TaskTask(unittest.TestCase):
 class TaskCommandTesks(unittest.TestCase):
 
     def setUp(self):
-        path = './tmp/'
-        self.tl = TimeLogger(path,path + today_datetime.strftime("%Y-%m-%d_%A.json"))
+        self.filepath = './tmp/' + today_datetime.strftime("%Y-%m-%d_%A.json")
+        self.tl = TimeLogger(self.filepath)
         self.tl.tasks = []
 
     def test_save_tasks_to_file(self):
         self.tl.command_create_rename_merge('example')
         self.tl.save_tasks_to_file()
-        self.assertEqual(self.tl.filepath,'./tmp/2023-06-29_Thursday.json')
-        self.assertTrue(os.path.exists('./tmp/2023-06-29_Thursday.json'))
-        os.remove('./tmp/2023-06-29_Thursday.json')
-        
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-01_Thursday.json')
+        self.assertTrue(os.path.exists('./tmp/2023-06-01_Thursday.json'))
+        shutil.rmtree('./tmp/')
+
+    def test_load_file(self):
+        self.tl.tasks = [Task("2-3", current_datetime)]
+        self.tl.save_tasks_to_file()
+        self.tl.tasks = [Task("3-4", current_datetime), Task("2-3", current_datetime)]
+        self.assertEqual(len(self.tl.tasks),2)
+        self.tl.load_file(self.filepath)
+        self.assertEqual(len(self.tl.tasks),1)
+        self.assertEqual(self.tl.current_datetime, today_datetime.date())
+        shutil.rmtree('./tmp/')
 
     def test_command_prev_day(self):
         self.tl.command_create_rename_merge('example')
         self.assertEqual(len(self.tl.tasks),1)
-        self.assertEqual(self.tl.filepath,'./tmp/2023-06-29_Thursday.json')
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-01_Thursday.json')
         self.tl.command_prev_day()
-        self.assertEqual(self.tl.filepath,'./tmp/2023-06-28_Wednesday.json')
+        self.assertEqual(self.tl.filepath,'./tmp/2023-05-31_Wednesday.json')
         self.assertEqual(len(self.tl.tasks),0)
         for _ in range(7*40):
             self.tl.command_prev_day()
-        self.assertEqual(self.tl.filepath,'./tmp/2022-09-21_Wednesday.json')
-
+        self.assertEqual(self.tl.filepath,'./tmp/2022-08-24_Wednesday.json')
 
     def test_sub_command_start_new_or_existing_task(self):
         self.assertEqual(len(self.tl.tasks),0)
@@ -459,7 +472,7 @@ class TaskAutoCompleter(unittest.TestCase):
         cmds = ['exit','rm ', 'help']
         known_params = ['MEETING','OTHER','SOMETHING']
         self.c = AutoCompleter(cmds, known_params)
-        self.c.current_tasks = [Task('TASK-1234'),Task('TASK-42'),Task('OTHER'),Task('record')]
+        self.c.current_tasks = [Task('TASK-1234', current_datetime),Task('TASK-42', current_datetime),Task('OTHER', current_datetime),Task('record', current_datetime)]
 
     def test_completer(self):
         self.assertEqual(self.c.complete(''),'exit')
@@ -494,6 +507,9 @@ class TaskAutoCompleter(unittest.TestCase):
         self.assertEqual(self.c.complete('UNKNOWN=M'),None)
         self.assertEqual(self.c.complete('0='),'0=TASK-1234')
 
+class TaskToRunAfterAllTests(unittest.TestCase):
+    def test_all_files_saved_in_test_are_deleted_after(self):
+        self.assertFalse(os.path.exists('./tmp/'))
 
 if __name__ == '__main__':
     unittest.main()
