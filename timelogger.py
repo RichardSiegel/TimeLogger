@@ -589,6 +589,13 @@ class TimeLogger:
             print("sub_command_rename")
         self.rename_task(task_refs[0],task_refs[-1])
 
+    def command_next_day(self):
+        previous_date = self.current_datetime + relativedelta(days=1)
+        path_elements = self.parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
+        path = '/'.join(self.parrent_dir)+'/'
+        filepath = '/'.join(path_elements)
+        self.load_file(filepath)
+
     def command_prev_day(self):
         previous_date = self.current_datetime - relativedelta(days=1)
         path_elements = self.parrent_dir + [previous_date.strftime('%Y-%m-%d_%A.json')]
@@ -627,6 +634,8 @@ def main():
             pass
         elif command == "exit" or command == "q":
             break
+        elif command == ">":
+            tl.command_next_day()
         elif command == "<":
             tl.command_prev_day()
         elif command.startswith("rm "):

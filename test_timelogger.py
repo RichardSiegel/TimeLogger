@@ -374,6 +374,17 @@ class TaskCommandTesks(unittest.TestCase):
         self.assertEqual(self.tl.current_datetime, today_datetime.date())
         shutil.rmtree('./tmp/')
 
+    def test_command_next_day(self):
+        self.tl.command_create_rename_merge('example')
+        self.assertEqual(len(self.tl.tasks),1)
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-01_Thursday.json')
+        self.tl.command_next_day()
+        self.assertEqual(self.tl.filepath,'./tmp/2023-06-02_Friday.json')
+        self.assertEqual(len(self.tl.tasks),0)
+        for _ in range(7*40):
+            self.tl.command_next_day()
+        self.assertEqual(self.tl.filepath,'./tmp/2024-03-08_Friday.json')
+
     def test_command_prev_day(self):
         self.tl.command_create_rename_merge('example')
         self.assertEqual(len(self.tl.tasks),1)
