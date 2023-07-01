@@ -512,6 +512,7 @@ class TimeLogger:
     def command_help(self):
         if self.verbose:
             print("command_help")
+        print("'<' OR '>'                      load previous or next day")
         print("''                              update view")
         print("'rm [name/id]'                  to delete")
         print("'stop' OR 'x'                   to stop current task")
