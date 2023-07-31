@@ -43,7 +43,7 @@ class AutoCompleter:
             current_input = raw_current_input.lstrip()
             current_tasks_names = [task.name for task in self.current_tasks]
             current_tasks_ids = [str(i) for i in range(len(self.current_tasks))]
-            if raw_current_input == ' ':
+            if raw_current_input == ' ' or raw_current_input == '/':
                 self.suggestions = current_tasks_names + self.known_params
             elif current_input == '':
                 self.suggestions = self.cmds + ['[Space]+[Tab]:TaskNames']

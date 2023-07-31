@@ -502,6 +502,7 @@ class TaskAutoCompleter(unittest.TestCase):
         self.assertEqual(self.c.complete('rm'),'rm ')
         self.assertEqual(self.c.complete('rm T'),'rm TASK-1234')
         self.assertEqual(self.c.complete(' '),'TASK-1234')
+        self.assertEqual(self.c.complete('/'),'TASK-1234')
         self.assertEqual(self.c.complete('8'),None)
         self.assertEqual(self.c.complete('task=8'),'task=8-now')
         self.assertEqual(self.c.complete('task=-8'),None)
