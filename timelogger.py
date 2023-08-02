@@ -12,6 +12,11 @@ import readline
 import sys
 import time
 
+def hours_since_midnight():
+    now = datetime.now()
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    delta = now - midnight
+    return delta.total_seconds() / 3600
 
 class AutoCompleter:
     def __init__(self , cmds = [], known_params = []):
@@ -449,13 +454,24 @@ class TimeLogger:
         else:
             return f"{h}h+{m}m"
 
+    def format_hours_as_time_sting(self,hours):
+        h = int(hours)
+        m = int((hours - int(hours)) * 60)
+        return f"{h}:{m:02d}"
+
     def show_task_summary(self):
-        total_logged_time = self.format_hours(sum(task.get_total_time_spent() for task in self.tasks))
+        correction_offset = 0.00001
+        h_since_midnight = hours_since_midnight() + correction_offset 
+        workday_hours = 8
+        total_logged_time_raw = sum(task.get_total_time_spent() for task in self.tasks)
+        total_logged_time = self.format_hours(total_logged_time_raw)
         visible_tasks = [task for task in self.tasks if not task.is_unpaid()]
         total_working_time = self.format_hours(sum(task.get_total_time_spent() for task in visible_tasks))
+        done_achieved_at = self.format_hours_as_time_sting(h_since_midnight + (workday_hours - total_logged_time_raw))
         print(f"Total logged time: {total_logged_time}")
         if not total_logged_time == total_working_time:
             print(f"Total working time: {total_working_time}")
+        print(f"no need to work after: {done_achieved_at}")
         print()
         for index, task in enumerate(self.tasks):
             total_time = self.format_hours(task.get_total_time_spent()).rjust(7,'.')
